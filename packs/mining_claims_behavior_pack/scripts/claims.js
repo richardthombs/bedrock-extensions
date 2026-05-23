@@ -6,8 +6,12 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function isProtectedClaimType(claim) {
-  return claim?.claimType === CONFIG.claimType || claim?.claimType === undefined;
+function isMiningClaimType(claim) {
+  return claim?.claimType === CONFIG.claimType;
+}
+
+function overlaps(a, b) {
+  return !(a.maxX < b.minX || a.minX > b.maxX || a.maxZ < b.minZ || a.minZ > b.maxZ);
 }
 
 export function getPlayerId(player) {
@@ -18,10 +22,6 @@ export function getDimensionId(entityOrDimension) {
   if (!entityOrDimension) return "unknown";
   if (typeof entityOrDimension === "string") return entityOrDimension;
   return entityOrDimension.id ?? entityOrDimension.dimension?.id ?? "unknown";
-}
-
-export function normalizePlayerName(name) {
-  return `${name ?? ""}`.trim().toLowerCase();
 }
 
 export function blockLocationOf(target) {
@@ -43,35 +43,16 @@ export function computeBounds(center, radius = CONFIG.claimRadius) {
   };
 }
 
-function overlaps(a, b) {
-  return !(a.maxX < b.minX || a.minX > b.maxX || a.maxZ < b.minZ || a.minZ > b.maxZ);
-}
-
 export function getAllClaims() {
   return loadClaims();
 }
 
 export function getClaims() {
-  return getAllClaims().filter((claim) => isProtectedClaimType(claim) && claim.active !== false);
-}
-
-export function getClaimById(claimId) {
-  return getClaims().find((claim) => claim.id === claimId);
+  return getAllClaims().filter((claim) => isMiningClaimType(claim) && claim.active !== false);
 }
 
 export function getClaimsForOwner(ownerId) {
   return getClaims().filter((claim) => claim.ownerId === ownerId);
-}
-
-export function findClaimAt(dimensionId, location) {
-  const block = blockLocationOf(location);
-  return getClaims().find((claim) =>
-    claim.dimensionId === dimensionId &&
-    block.x >= claim.bounds.minX &&
-    block.x <= claim.bounds.maxX &&
-    block.z >= claim.bounds.minZ &&
-    block.z <= claim.bounds.maxZ
-  );
 }
 
 export function findClaimByAnchor(dimensionId, location) {
@@ -84,17 +65,22 @@ export function findClaimByAnchor(dimensionId, location) {
   );
 }
 
-export function isClaimTrustedForPlayer(claim, player) {
-  if (!claim || !player) return false;
+export function findOwnerClaimAt(player, location) {
+  const ownerId = getPlayerId(player);
+  const dimensionId = getDimensionId(player.dimension);
+  const block = blockLocationOf(location);
+  return getClaims().find((claim) =>
+    claim.ownerId === ownerId &&
+    claim.dimensionId === dimensionId &&
+    block.x >= claim.bounds.minX &&
+    block.x <= claim.bounds.maxX &&
+    block.z >= claim.bounds.minZ &&
+    block.z <= claim.bounds.maxZ
+  );
+}
 
-  const config = loadConfig();
-  if (config.strictProtectionMode) {
-    return false;
-  }
-
-  if (claim.ownerId === getPlayerId(player)) return true;
-  const playerName = normalizePlayerName(player.name);
-  return (claim.trusted ?? []).some((entry) => normalizePlayerName(entry) === playerName);
+export function getFirstOwnerClaim(player) {
+  return getClaimsForOwner(getPlayerId(player))[0];
 }
 
 export function isBypassEnabledForPlayer(player) {
@@ -102,10 +88,6 @@ export function isBypassEnabledForPlayer(player) {
   const players = loadPlayers();
   const record = players[getPlayerId(player)];
   return Boolean(record?.adminBypass);
-}
-
-export function isAllowedInClaim(claim, player) {
-  return isClaimTrustedForPlayer(claim, player) || isBypassEnabledForPlayer(player);
 }
 
 export function createClaim(player, center) {
@@ -121,7 +103,7 @@ export function createClaim(player, center) {
 
   const owned = getClaimsForOwner(playerId);
   if (owned.length >= config.maxClaimsPerPlayer) {
-    return { ok: false, error: `You already own the maximum number of claims (${config.maxClaimsPerPlayer}).` };
+    return { ok: false, error: `You already own the maximum number of mining claims (${config.maxClaimsPerPlayer}).` };
   }
 
   const bounds = computeBounds(center, config.claimRadius);
@@ -132,7 +114,7 @@ export function createClaim(player, center) {
   );
 
   if (overlapsExisting) {
-    return { ok: false, error: "This area overlaps another claim." };
+    return { ok: false, error: "This mining claim would overlap another claim." };
   }
 
   const claim = {
@@ -166,9 +148,9 @@ export function createClaim(player, center) {
 export function removeClaim(claimId) {
   const allClaims = getAllClaims();
   const players = loadPlayers();
-  const target = allClaims.find((claim) => claim.id === claimId && isProtectedClaimType(claim));
+  const target = allClaims.find((claim) => claim.id === claimId && isMiningClaimType(claim));
   if (!target) {
-    return { ok: false, error: "Claim not found." };
+    return { ok: false, error: "Mining claim not found." };
   }
 
   const nextClaims = allClaims.filter((claim) => claim.id !== claimId);
@@ -181,40 +163,6 @@ export function removeClaim(claimId) {
   savePlayers(players);
 
   return { ok: true, claim: target };
-}
-
-export function addTrustedPlayer(claimId, playerName) {
-  const allClaims = getAllClaims();
-  const claim = allClaims.find((entry) => entry.id === claimId && isProtectedClaimType(entry));
-  if (!claim) return { ok: false, error: "Claim not found." };
-
-  const normalized = normalizePlayerName(playerName);
-  if (!normalized) return { ok: false, error: "Player name is required." };
-  if ((claim.trusted ?? []).some((entry) => normalizePlayerName(entry) === normalized)) {
-    return { ok: false, error: `${playerName} is already trusted.` };
-  }
-
-  claim.trusted = [...(claim.trusted ?? []), playerName.trim()];
-  saveClaims(allClaims);
-  return { ok: true, claim };
-}
-
-export function removeTrustedPlayer(claimId, playerName) {
-  const allClaims = getAllClaims();
-  const claim = allClaims.find((entry) => entry.id === claimId && isProtectedClaimType(entry));
-  if (!claim) return { ok: false, error: "Claim not found." };
-
-  const normalized = normalizePlayerName(playerName);
-  const before = claim.trusted ?? [];
-  const after = before.filter((entry) => normalizePlayerName(entry) !== normalized);
-
-  if (after.length === before.length) {
-    return { ok: false, error: `${playerName} is not trusted on this claim.` };
-  }
-
-  claim.trusted = after;
-  saveClaims(allClaims);
-  return { ok: true, claim };
 }
 
 export function setAdminBypass(player, enabled) {
@@ -230,11 +178,11 @@ export function setAdminBypass(player, enabled) {
   savePlayers(players);
 }
 
-export function getOnlinePlayerByName(playerName) {
-  const normalized = normalizePlayerName(playerName);
-  return world.getAllPlayers().find((player) => normalizePlayerName(player.name) === normalized);
+export function summarizeClaim(claim) {
+  return `${claim.id} [${claim.claimType}]: ${claim.ownerName} @ ${claim.anchor.x}, ${claim.anchor.y}, ${claim.anchor.z} in ${claim.dimensionId} [${claim.bounds.minX}..${claim.bounds.maxX}, ${claim.bounds.minZ}..${claim.bounds.maxZ}]`;
 }
 
-export function summarizeClaim(claim) {
-  return `${claim.id} [${claim.claimType ?? CONFIG.claimType}]: ${claim.ownerName} @ ${claim.anchor.x}, ${claim.anchor.y}, ${claim.anchor.z} in ${claim.dimensionId} [${claim.bounds.minX}..${claim.bounds.maxX}, ${claim.bounds.minZ}..${claim.bounds.maxZ}]`;
+export function getOnlinePlayerByName(playerName) {
+  const normalized = `${playerName ?? ""}`.trim().toLowerCase();
+  return world.getAllPlayers().find((player) => `${player.name ?? ""}`.trim().toLowerCase() === normalized);
 }

@@ -2,9 +2,9 @@
   "format_version": 2,
   "header": {
     "name": "Protected Base Zones [BP]",
-    "description": "Fixed 20-tick polling build using campfire tall smoke particles. v0.1.22",
+    "description": "Protected claim pack fixes natural anchor-break dupe by not refunding on break. v0.1.27",
     "uuid": "f95e4430-252c-450e-a377-7a5e78012a4d",
-    "version": [0, 1, 22],
+    "version": [0, 1, 27],
     "min_engine_version": [1, 21, 0]
   },
   "modules": [
@@ -12,14 +12,14 @@
       "description": "Protected Base Zones data module",
       "type": "data",
       "uuid": "b7501149-d0ad-457e-989d-10859764cd10",
-      "version": [0, 1, 22]
+      "version": [0, 1, 27]
     },
     {
       "description": "Protected Base Zones script module",
       "type": "script",
       "language": "javascript",
       "uuid": "c910aba8-38f5-456f-8f50-64e9006c0156",
-      "version": [0, 1, 22],
+      "version": [0, 1, 27],
       "entry": "scripts/main.js"
     }
   ],

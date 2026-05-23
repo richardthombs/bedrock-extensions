@@ -387,15 +387,23 @@ Implementation work currently exists under:
 - `docs/data-schema.md`
 - `docs/test-plan.md`
 - `docs/deployment.md`
+- `docs/mining-claims.md`
 - `build-mcpack.ps1`
 - `build-mcpack.cmd`
 - `dist/Protected-Base-Zones-BP.mcpack`
+- `dist/Mining-Claims-BP.mcpack`
 - `packs/behavior_pack/README.md`
 - `packs/behavior_pack/manifest.json`
 - `packs/behavior_pack/scripts/config.js`
 - `packs/behavior_pack/scripts/store.js`
 - `packs/behavior_pack/scripts/claims.js`
 - `packs/behavior_pack/scripts/main.js`
+- `packs/mining_claims_behavior_pack/README.md`
+- `packs/mining_claims_behavior_pack/manifest.json`
+- `packs/mining_claims_behavior_pack/scripts/config.js`
+- `packs/mining_claims_behavior_pack/scripts/store.js`
+- `packs/mining_claims_behavior_pack/scripts/claims.js`
+- `packs/mining_claims_behavior_pack/scripts/main.js`
 
 ---
 

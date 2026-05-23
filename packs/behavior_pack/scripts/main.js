@@ -7,6 +7,7 @@ import {
   findClaimAt,
   findClaimByAnchor,
   getClaims,
+  getClaimsForOwner,
   getDimensionId,
   getOnlinePlayerByName,
   getPlayerId,
@@ -52,6 +53,31 @@ async function safeCommand(target, command) {
   } catch {
     return undefined;
   }
+}
+
+function playerHasItem(player, itemTypeId) {
+  try {
+    const inventory = player.getComponent?.("inventory");
+    const container = inventory?.container;
+    if (!container) return false;
+
+    for (let slot = 0; slot < container.size; slot += 1) {
+      const item = container.getItem(slot);
+      if (item?.typeId === itemTypeId && item.amount > 0) {
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+async function giveStarterClaimBlockIfNeeded(player) {
+  const ownedClaims = getClaimsForOwner(getPlayerId(player));
+  if (ownedClaims.length > 0) return;
+  if (playerHasItem(player, CONFIG.claimTotemBlockType)) return;
+
+  await safeCommand(player, `give @s ${CONFIG.claimTotemBlockType} 1`);
+  send(player, "You were given a Lodestone because you do not yet own a protected zone.");
 }
 
 function getClaimAtPlayer(player) {
@@ -533,6 +559,7 @@ subscribeIfAvailable(world.afterEvents?.playerSpawn, (event) => {
   if (!event.initialSpawn) return;
   system.runTimeout(() => {
     send(event.player, "Protected Base Zones loaded. Use /scriptevent pbz:help and place a Lodestone to create a claim.");
+    void giveStarterClaimBlockIfNeeded(event.player);
   }, 20);
 });
 
@@ -654,7 +681,12 @@ subscribeIfAvailable(system.afterEvents?.scriptEventReceive, (event) => {
       }
       {
         const result = removeClaim(currentClaim.id);
-        send(player, result.ok ? `Claim ${currentClaim.id} removed.` : result.error);
+        if (result.ok) {
+          void safeCommand(player, `give @s ${CONFIG.claimTotemBlockType} 1`);
+          send(player, `Claim ${currentClaim.id} removed. A new anchor was returned to you.`);
+        } else {
+          send(player, result.error);
+        }
       }
       break;
 
@@ -712,7 +744,7 @@ subscribeIfAvailable(system.afterEvents?.scriptEventReceive, (event) => {
       {
         const config = loadConfig();
         saveConfig({ ...config, strictProtectionMode: message === "on" });
-        send(player, `Strict test mode ${message}. When on, claim protection affects everyone except admin bypass.`);
+        send(player, `Strict test mode ${message}. When on, trusted players are ignored, but the owner still keeps access unless admin bypass is used.`);
       }
       break;
     default:

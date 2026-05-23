@@ -1,6 +1,7 @@
 export const CONFIG = {
   namespace: "pbz",
   packName: "Protected Base Zones",
+  claimType: "protected-base-zone",
   claimTotemBlockType: "minecraft:lodestone",
   claimRadius: 32,
   maxClaimsPerPlayer: 1,
@@ -27,7 +28,7 @@ export const CONFIG = {
   adminAlertsEnabled: true,
   adminTag: "pbz_admin",
   actionBarEnabled: false,
-  strictProtectionMode: true,
+  strictProtectionMode: false,
   debugTag: "pbz_debug"
 };
 
