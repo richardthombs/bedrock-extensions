@@ -1,0 +1,37 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Protected Base Zones [BP]",
+    "description": "Fixed 20-tick polling build using campfire tall smoke particles. v0.1.22",
+    "uuid": "f95e4430-252c-450e-a377-7a5e78012a4d",
+    "version": [0, 1, 22],
+    "min_engine_version": [1, 21, 0]
+  },
+  "modules": [
+    {
+      "description": "Protected Base Zones data module",
+      "type": "data",
+      "uuid": "b7501149-d0ad-457e-989d-10859764cd10",
+      "version": [0, 1, 22]
+    },
+    {
+      "description": "Protected Base Zones script module",
+      "type": "script",
+      "language": "javascript",
+      "uuid": "c910aba8-38f5-456f-8f50-64e9006c0156",
+      "version": [0, 1, 22],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.19.0"
+    }
+  ],
+  "metadata": {
+    "authors": ["OpenAI"],
+    "license": "Private/internal use",
+    "url": "https://example.invalid/protected-base-zones"
+  }
+}
