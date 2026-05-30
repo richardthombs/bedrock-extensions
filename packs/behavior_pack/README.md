@@ -15,8 +15,12 @@ Use Bedrock script events:
 - `/scriptevent pbz:trust <playerName>`
 - `/scriptevent pbz:untrust <playerName>`
 - `/scriptevent pbz:remove`
+- `/scriptevent pbz:reset`
 - `/scriptevent pbz:inspect`
 - `/scriptevent pbz:list`
+- `/scriptevent pbz:resetplayer <playerName>` (admin)
+- `/scriptevent pbz:removeclaim <claimId>` (admin)
+- `/scriptevent pbz:where <playerName>` (admin)
 - `/scriptevent pbz:bypass on`
 - `/scriptevent pbz:bypass off`
 - `/scriptevent pbz:testmode on`
@@ -28,6 +32,15 @@ Give yourself the admin tag to use admin-only commands:
 
 Admin tag alone no longer bypasses protection. Bypass must be enabled explicitly with:
 - `/scriptevent pbz:bypass on`
+
+Admins can also remotely reset a player's protected zone and return them a new Lodestone with:
+- `/scriptevent pbz:resetplayer <playerName>`
+
+Or remove a specific claim from `/scriptevent pbz:list` output with:
+- `/scriptevent pbz:removeclaim <claimId>`
+
+To find a specific player's claim id and coordinates without listing everything:
+- `/scriptevent pbz:where <playerName>`
 
 ## Debug messages
 To see detection/cancellation debug messages in chat:
@@ -43,6 +56,8 @@ To turn it off:
 - `/scriptevent pbz:testmode off`
 
 When test mode is on, the owner is treated like an untrusted player unless they also enable admin bypass.
+
+`/scriptevent pbz:reset` removes your current protected zone from anywhere and gives you a new Lodestone back. This is useful if you died and cannot find your old claim.
 
 ## Current punishment/protection behavior
 - Untrusted players receive **mining fatigue immediately** when they enter a protected zone.

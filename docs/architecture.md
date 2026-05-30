@@ -42,8 +42,12 @@ Management is currently done through `/scriptevent` commands:
 - `/scriptevent pbz:trust <playerName>`
 - `/scriptevent pbz:untrust <playerName>`
 - `/scriptevent pbz:remove`
+- `/scriptevent pbz:reset`
 - `/scriptevent pbz:inspect`
 - `/scriptevent pbz:list`
+- `/scriptevent pbz:resetplayer <playerName>`
+- `/scriptevent pbz:removeclaim <claimId>`
+- `/scriptevent pbz:where <playerName>`
 - `/scriptevent pbz:bypass on`
 - `/scriptevent pbz:bypass off`
 

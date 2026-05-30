@@ -27,6 +27,32 @@
 2. Run `/scriptevent pbz:remove`.
 3. Verify the claim is deleted and the area no longer reports as protected.
 
+### Reset recovery test
+1. Owner creates a claim, then moves far away or simulates getting lost after death.
+2. Run `/scriptevent pbz:reset` from anywhere.
+3. Verify the claim is deleted.
+4. Verify the owner receives a new Lodestone.
+5. Verify the old area no longer reports as protected.
+
+### Admin reset recovery test
+1. Give Player A a claim.
+2. As an admin, run `/scriptevent pbz:resetplayer PlayerA` from anywhere.
+3. Verify Player A's claim is deleted.
+4. Verify Player A receives a Lodestone immediately if online, or on their next spawn if offline.
+
+### Admin remove-by-id test
+1. Create at least one claim.
+2. Run `/scriptevent pbz:list` and note a claim id.
+3. As an admin, run `/scriptevent pbz:removeclaim <claimId>` from anywhere.
+4. Verify that exact claim is deleted.
+5. Verify the owner receives a Lodestone immediately if online, or on their next spawn if offline.
+
+### Admin where lookup test
+1. Give Player A a claim.
+2. As an admin, run `/scriptevent pbz:where PlayerA` from anywhere.
+3. Verify it prints Player A's claim id and coordinates.
+4. Verify the coordinates match the Lodestone anchor and claim summary.
+
 ## Realm test flow
 - Test locally first
 - Upload the world with the active behavior pack to a staging Realm

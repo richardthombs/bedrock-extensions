@@ -7,17 +7,19 @@ import {
   findClaimAt,
   findClaimByAnchor,
   getClaims,
+  getClaimById,
   getClaimsForOwner,
   getDimensionId,
   getOnlinePlayerByName,
   getPlayerId,
   isAllowedInClaim,
+  normalizePlayerName,
   removeClaim,
   removeTrustedPlayer,
   setAdminBypass,
   summarizeClaim
 } from "./claims.js";
-import { initializeStore, loadConfig, registerDynamicProperties, saveConfig } from "./store.js";
+import { initializeStore, loadConfig, loadPlayers, registerDynamicProperties, saveConfig, savePlayers } from "./store.js";
 
 const runtime = {
   lastClaimByPlayer: new Map(),
@@ -78,6 +80,38 @@ async function giveStarterClaimBlockIfNeeded(player) {
 
   await safeCommand(player, `give @s ${CONFIG.claimTotemBlockType} 1`);
   send(player, "You were given a Lodestone because you do not yet own a protected zone.");
+}
+
+function queuePendingClaimBlockGrant(playerId, playerName, amount = 1) {
+  const players = loadPlayers();
+  players[playerId] = players[playerId] ?? {
+    ownedClaimIds: [],
+    adminBypass: false,
+    lastKnownName: playerName
+  };
+  players[playerId].lastKnownName = playerName;
+  players[playerId].pendingClaimBlockGrants = Math.max(0, Number(players[playerId].pendingClaimBlockGrants ?? 0)) + Math.max(0, amount);
+  savePlayers(players);
+}
+
+async function deliverPendingClaimBlockGrants(player) {
+  const players = loadPlayers();
+  const playerId = getPlayerId(player);
+  const record = players[playerId];
+  const pendingCount = Math.max(0, Number(record?.pendingClaimBlockGrants ?? 0));
+  if (!pendingCount) return;
+
+  players[playerId] = players[playerId] ?? {
+    ownedClaimIds: [],
+    adminBypass: false,
+    lastKnownName: player.name
+  };
+  players[playerId].lastKnownName = player.name;
+  players[playerId].pendingClaimBlockGrants = 0;
+  savePlayers(players);
+
+  await safeCommand(player, `give @s ${CONFIG.claimTotemBlockType} ${pendingCount}`);
+  send(player, `An admin removed or reset your protected zone. You received ${pendingCount} Lodestone${pendingCount === 1 ? "" : "s"}.`);
 }
 
 function getClaimAtPlayer(player) {
@@ -480,6 +514,118 @@ async function handleClaimTotemPlacement(event) {
   await safeCommand(player, `give @s ${CONFIG.claimTotemBlockType} 1`);
 }
 
+async function resetOwnedClaim(player) {
+  const ownedClaims = getClaimsForOwner(getPlayerId(player));
+  if (!ownedClaims.length) {
+    send(player, "You do not currently own a protected zone to reset.");
+    await giveStarterClaimBlockIfNeeded(player);
+    return;
+  }
+
+  if (ownedClaims.length > 1) {
+    send(player, "You own multiple protected zones. Stand inside one and use /scriptevent pbz:remove instead.");
+    return;
+  }
+
+  const [claim] = ownedClaims;
+  const result = removeClaim(claim.id);
+  if (!result.ok) {
+    send(player, result.error);
+    return;
+  }
+
+  await safeCommand(player, `give @s ${CONFIG.claimTotemBlockType} 1`);
+  send(player, `Protected zone ${claim.id} was reset. A new Lodestone was returned to you.`);
+  notifyAdmins(`${player.name} reset their protected zone ${claim.id} and received a new Lodestone.`);
+}
+
+async function adminResetPlayerClaim(admin, targetName) {
+  const normalizedTargetName = normalizePlayerName(targetName);
+  if (!normalizedTargetName) {
+    send(admin, "Use /scriptevent pbz:resetplayer <playerName>");
+    return;
+  }
+
+  const matches = getClaims().filter((claim) => normalizePlayerName(claim.ownerName) === normalizedTargetName);
+  if (!matches.length) {
+    send(admin, `No protected zone found for ${targetName}.`);
+    return;
+  }
+
+  if (matches.length > 1) {
+    send(admin, `Multiple protected zones matched ${targetName}. Use /scriptevent pbz:list and remove the correct one manually.`);
+    return;
+  }
+
+  const [claim] = matches;
+  const result = removeClaim(claim.id);
+  if (!result.ok) {
+    send(admin, result.error);
+    return;
+  }
+
+  const targetPlayer = getOnlinePlayerByName(targetName) ?? getOnlinePlayerByName(claim.ownerName);
+  if (targetPlayer) {
+    await safeCommand(targetPlayer, `give @s ${CONFIG.claimTotemBlockType} 1`);
+    send(targetPlayer, `An admin reset your protected zone ${claim.id} and returned a Lodestone to you.`);
+  } else {
+    queuePendingClaimBlockGrant(claim.ownerId, claim.ownerName, 1);
+  }
+
+  send(admin, `Protected zone ${claim.id} owned by ${claim.ownerName} was reset.${targetPlayer ? " A Lodestone was returned to them." : " A Lodestone will be given when they next spawn."}`);
+  notifyAdmins(`${admin.name} reset ${claim.ownerName}'s protected zone ${claim.id}.`);
+}
+
+async function adminRemoveClaimById(admin, claimId) {
+  const trimmedClaimId = `${claimId ?? ""}`.trim();
+  if (!trimmedClaimId) {
+    send(admin, "Use /scriptevent pbz:removeclaim <claimId>");
+    return;
+  }
+
+  const claim = getClaimById(trimmedClaimId);
+  if (!claim) {
+    send(admin, `Claim ${trimmedClaimId} was not found.`);
+    return;
+  }
+
+  const result = removeClaim(claim.id);
+  if (!result.ok) {
+    send(admin, result.error);
+    return;
+  }
+
+  const ownerPlayer = getOnlinePlayerByName(claim.ownerName);
+  if (ownerPlayer) {
+    await safeCommand(ownerPlayer, `give @s ${CONFIG.claimTotemBlockType} 1`);
+    send(ownerPlayer, `An admin removed your protected zone ${claim.id} and returned a Lodestone to you.`);
+  } else {
+    queuePendingClaimBlockGrant(claim.ownerId, claim.ownerName, 1);
+  }
+
+  send(admin, `Claim ${claim.id} owned by ${claim.ownerName} was removed.${ownerPlayer ? " A Lodestone was returned to them." : " A Lodestone will be given when they next spawn."}`);
+  notifyAdmins(`${admin.name} removed ${claim.ownerName}'s protected zone ${claim.id} by claim id.`);
+}
+
+function adminWherePlayerClaim(admin, targetName) {
+  const normalizedTargetName = normalizePlayerName(targetName);
+  if (!normalizedTargetName) {
+    send(admin, "Use /scriptevent pbz:where <playerName>");
+    return;
+  }
+
+  const matches = getClaims().filter((claim) => normalizePlayerName(claim.ownerName) === normalizedTargetName);
+  if (!matches.length) {
+    send(admin, `No protected zone found for ${targetName}.`);
+    return;
+  }
+
+  send(admin, `Found ${matches.length} protected zone${matches.length === 1 ? "" : "s"} for ${matches[0].ownerName}:`);
+  for (const claim of matches) {
+    send(admin, summarizeClaim(claim));
+  }
+}
+
 function getUnauthorizedClaimForPlayer(player, location) {
   if (!player || !location) return undefined;
   const claim = findClaimAt(getDimensionId(player.dimension), location);
@@ -556,8 +702,10 @@ subscribeIfAvailable(world.afterEvents?.playerBreakBlock, (event) => {
 });
 
 subscribeIfAvailable(world.afterEvents?.playerSpawn, (event) => {
-  if (!event.initialSpawn) return;
   system.runTimeout(() => {
+    void deliverPendingClaimBlockGrants(event.player);
+
+    if (!event.initialSpawn) return;
     send(event.player, "Protected Base Zones loaded. Use /scriptevent pbz:help and place a Lodestone to create a claim.");
     void giveStarterClaimBlockIfNeeded(event.player);
   }, 20);
@@ -628,7 +776,11 @@ subscribeIfAvailable(system.afterEvents?.scriptEventReceive, (event) => {
 
   switch (event.id) {
     case "pbz:help":
-      send(player, "Commands: /scriptevent pbz:show | trust <name> | untrust <name> | remove | inspect | list | bypass on|off | testmode on|off");
+      send(player, "Commands: /scriptevent pbz:show | trust <name> | untrust <name> | remove | reset | inspect | list | bypass on|off | testmode on|off");
+      send(player, "Use /scriptevent pbz:reset if you lost your way back and need to delete your current protected zone and get a new Lodestone.");
+      if (player.hasTag?.(CONFIG.adminTag)) {
+        send(player, "Admin: /scriptevent pbz:resetplayer <playerName> | /scriptevent pbz:removeclaim <claimId> | /scriptevent pbz:where <playerName>");
+      }
       send(player, `Debug tag: /tag @s add ${CONFIG.debugTag}`);
       break;
 
@@ -688,6 +840,34 @@ subscribeIfAvailable(system.afterEvents?.scriptEventReceive, (event) => {
           send(player, result.error);
         }
       }
+      break;
+
+    case "pbz:reset":
+      void resetOwnedClaim(player);
+      break;
+
+    case "pbz:resetplayer":
+      if (!player.hasTag?.(CONFIG.adminTag)) {
+        send(player, `Add tag ${CONFIG.adminTag} to use admin reset.`);
+        return;
+      }
+      void adminResetPlayerClaim(player, message);
+      break;
+
+    case "pbz:removeclaim":
+      if (!player.hasTag?.(CONFIG.adminTag)) {
+        send(player, `Add tag ${CONFIG.adminTag} to use admin claim removal.`);
+        return;
+      }
+      void adminRemoveClaimById(player, message);
+      break;
+
+    case "pbz:where":
+      if (!player.hasTag?.(CONFIG.adminTag)) {
+        send(player, `Add tag ${CONFIG.adminTag} to use admin claim lookup.`);
+        return;
+      }
+      adminWherePlayerClaim(player, message);
       break;
 
     case "pbz:inspect":

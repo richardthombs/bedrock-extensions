@@ -35,6 +35,9 @@ Useful commands:
 - `/give @s lodestone 1`
 - `/tag @s add pbz_admin`
 - `/scriptevent pbz:help`
+- `/scriptevent pbz:resetplayer <playerName>`
+- `/scriptevent pbz:removeclaim <claimId>`
+- `/scriptevent pbz:where <playerName>`
 
 ## Realm deployment
 ### Recommended safe process
@@ -66,6 +69,7 @@ After joining the world or Realm:
    - `/scriptevent pbz:untrust <playerName>`
    - restricted item use by an untrusted player
 5. Test removal with `/scriptevent pbz:remove`.
+6. Test recovery from anywhere with `/scriptevent pbz:reset`.
 
 ## Current deployment assumptions
 This implementation currently assumes:

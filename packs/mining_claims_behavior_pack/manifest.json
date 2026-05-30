@@ -2,9 +2,9 @@
   "format_version": 2,
   "header": {
     "name": "Mining Claims [BP]",
-    "description": "Mining claims restored before-event placement prevention with after-event fallback cleanup. v0.1.10",
+    "description": "Mining claims restored before-event placement prevention with after-event fallback cleanup. v0.1.11",
     "uuid": "58ba1df6-66b4-4d3d-93a8-28dc59994932",
-    "version": [0, 1, 10],
+    "version": [0, 1, 11],
     "min_engine_version": [1, 21, 0]
   },
   "modules": [
@@ -12,14 +12,14 @@
       "description": "Mining Claims data module",
       "type": "data",
       "uuid": "52a6340e-0e02-4178-ad56-4bf7af2e6b6a",
-      "version": [0, 1, 10]
+      "version": [0, 1, 11]
     },
     {
       "description": "Mining Claims script module",
       "type": "script",
       "language": "javascript",
       "uuid": "f5df0d50-c36f-4650-b57e-6a2b506aa8f9",
-      "version": [0, 1, 10],
+      "version": [0, 1, 11],
       "entry": "scripts/main.js"
     }
   ],
